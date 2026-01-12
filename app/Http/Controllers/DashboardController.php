@@ -3,14 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Kreait\Laravel\Firebase\Facades\Firebase;
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 use Carbon\Carbon;
 
+/**
+ * Dashboard Controller
+ * Uses Firebase REST API (HTTP/JSON) for all operations
+ */
 class DashboardController extends Controller
 {
+    use FirebaseRestTrait;
+
     public function index()
     {
-        $contractsRef = Firebase::firestore()->database()->collection('contracts')->documents();
+        // Fetch contracts using REST API
+        $contractsRef = $this->executeFirestoreOperation(function () {
+            $db = $this->getFirestoreDatabase();
+            return $db->collection('contracts')->documents();
+        }, 'Fetch contracts for dashboard');
         
         $stats = [
             'active' => 0,

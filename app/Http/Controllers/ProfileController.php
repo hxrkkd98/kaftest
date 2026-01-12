@@ -2,16 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
-use Kreait\Laravel\Firebase\Facades\Firebase;
 
+/**
+ * Profile Controller
+ * Uses Firebase REST API (HTTP/JSON) for profile operations
+ */
 class ProfileController extends Controller
 {
+    use FirebaseRestTrait;
     /**
      * Display the user's profile form.
      */
@@ -32,21 +37,20 @@ class ProfileController extends Controller
         $data = $request->validated();
 
         try {
-            // 2. Update Firebase Authentication (The "Login" Info)
-            // This ensures if they change their email here, they must login with the new email next time.
-            $auth = Firebase::auth();
-            $auth->updateUser($uid, [
-                'email' => $data['email'],
-                'displayName' => $data['name'],
-            ]);
+            // 2. Update Firebase Authentication using REST API
+            $this->executeAuthOperation(function () use ($uid, $data) {
+                $auth = $this->getFirebaseAuth();
+                $auth->updateUser($uid, [
+                    'email' => $data['email'],
+                    'displayName' => $data['name'],
+                ]);
+            }, 'Update user authentication');
 
-            // 3. Update Firestore (The "Profile" Info)
-            $firestore = Firebase::firestore()->database();
-            $firestore->collection('users')->document($uid)->set([
+            // 3. Update Firestore using REST API
+            $this->updateDocument('users', $uid, [
                 'name' => $data['name'],
                 'email' => $data['email'],
-                'updated_at' => now()->toIso8601String(),
-            ], ['merge' => true]); // 'merge' means "update only these fields, don't delete others"
+            ]);
 
             // 4. Manually update the local user object so the UI updates immediately
             $request->user()->name = $data['name'];
@@ -55,7 +59,7 @@ class ProfileController extends Controller
             return Redirect::route('profile.edit')->with('status', 'profile-updated');
 
         } catch (\Exception $e) {
-            return Redirect::route('profile.edit')->withErrors(['email' => 'Update failed: ' . $e->getMessage()]);
+            return Redirect::route('profile.edit')->withErrors(['email' => 'Update failed : ' . $e->getMessage()]);
         }
     }
 
@@ -73,15 +77,20 @@ class ProfileController extends Controller
         $uid = Auth::user()->uid;
 
         try {
-            // 1. Verify Password with Firebase before deleting
-            // (We try to sign in. If it fails, the password is wrong)
-            Firebase::auth()->signInWithEmailAndPassword($email, $password);
+            // 1. Verify Password using REST API
+            $this->executeAuthOperation(function () use ($email, $password) {
+                $auth = $this->getFirebaseAuth();
+                return $auth->signInWithEmailAndPassword($email, $password);
+            }, 'Verify password before deletion');
 
-            // 2. Delete from Firestore Database
-            Firebase::firestore()->database()->collection('users')->document($uid)->delete();
+            // 2. Delete from Firestore using REST API
+            $this->deleteDocument('users', $uid);
 
-            // 3. Delete from Firebase Authentication
-            Firebase::auth()->deleteUser($uid);
+            // 3. Delete from Firebase Authentication using REST API
+            $this->executeAuthOperation(function () use ($uid) {
+                $auth = $this->getFirebaseAuth();
+                $auth->deleteUser($uid);
+            }, 'Delete user from Firebase Auth');
 
             // 4. Logout
             Auth::logout();

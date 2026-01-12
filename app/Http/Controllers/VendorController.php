@@ -3,70 +3,70 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Kreait\Laravel\Firebase\Facades\Firebase;
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 
+/**
+ * Vendor Controller
+ * Uses Firebase REST API (HTTP/JSON) for all operations
+ */
 class VendorController extends Controller
 {
+    use FirebaseRestTrait;
+
     public function index()
     {
-        $vendorsRef = Firebase::firestore()->database()->collection('vendors');
-        $documents = $vendorsRef->documents();
-
-        $vendors = [];
-        foreach ($documents as $doc) {
-            if ($doc->exists()) {
-                $vendors[] = array_merge(['id' => $doc->id()], $doc->data());
-            }
-        }
+        // Fetch vendors using REST API
+        $vendors = $this->getCollectionDocuments('vendors');
+        
         return view('vendors.index', ['vendors' => $vendors]);
     }
 
     public function store(Request $request)
     {
-        // 1. ADD VALIDATION FOR EMAIL & ADDRESS
         $data = $request->validate([
             'vendor_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',       // New
+            'email' => 'required|email|max:255',
             'phone_number' => 'required|string|max:20',
             'contact_person' => 'required|string|max:255',
-            'address' => 'required|string|max:500',    // New
+            'address' => 'required|string|max:500',
         ]);
-        
-        $data['created_at'] = now()->toIso8601String();
 
-        $newRef = Firebase::firestore()->database()->collection('vendors')->add($data);
+        // Create vendor using REST API
+        $newId = $this->createDocument('vendors', $data);
 
         return response()->json([
             'success' => 'Vendor created successfully!',
-            'id' => $newRef->id(),
-            'vendor' => $data
+            'id' => $newId,
+            'vendor' => array_merge(['id' => $newId], $data)
         ]);
     }
 
     public function update(Request $request, $id)
     {
-        // 2. ADD VALIDATION FOR EMAIL & ADDRESS
         $data = $request->validate([
             'vendor_name' => 'required|string|max:255',
-            'email' => 'required|email|max:255',       // New
+            'email' => 'required|email|max:255',
             'phone_number' => 'required|string|max:20',
             'contact_person' => 'required|string|max:255',
-            'address' => 'required|string|max:500',    // New
+            'address' => 'required|string|max:500',
         ]);
 
-        $data['updated_at'] = now()->toIso8601String();
-
-        Firebase::firestore()->database()->collection('vendors')->document($id)->set($data, ['merge' => true]);
+        // Update vendor using REST API
+        $this->updateDocument('vendors', $id, $data);
 
         return response()->json([
             'success' => 'Vendor updated successfully!',
-            'vendor' => $data
+            'vendor' => array_merge(['id' => $id], $data)
         ]);
     }
 
     public function destroy($id)
     {
-        Firebase::firestore()->database()->collection('vendors')->document($id)->delete();
-        return response()->json(['success' => 'Vendor deleted successfully!']);
+        // Delete vendor using REST API
+        $this->deleteDocument('vendors', $id);
+        
+        return response()->json([
+            'success' => 'Vendor deleted successfully!'
+        ]);
     }
 }

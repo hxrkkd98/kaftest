@@ -3,18 +3,22 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
-
-use Kreait\Laravel\Firebase\Facades\Firebase;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Authentication Controller
+ * Uses Firebase REST API (HTTP/JSON) for authentication
+ */
 class AuthenticatedSessionController extends Controller
 {
+    use FirebaseRestTrait;
     /**
      * Display the login view.
      */
@@ -29,27 +33,31 @@ class AuthenticatedSessionController extends Controller
     public function store(LoginRequest $request): RedirectResponse
     {
         try {
-            // 1. Sign In using the Web API Key (Client Simulation)
-            $auth = Firebase::auth();
-            $signInResult = $auth->signInWithEmailAndPassword($request->email, $request->password);
+            // 1. Sign In using Firebase Auth REST API
+            $signInResult = $this->executeAuthOperation(function () use ($request) {
+                $auth = $this->getFirebaseAuth();
+                return $auth->signInWithEmailAndPassword($request->email, $request->password);
+            }, 'Sign in with email and password');
+            
             $uid = $signInResult->firebaseUserId();
 
-            // 2. Get User Data from Firestore
-            $snapshot = Firebase::firestore()->database()->collection('users')->document($uid)->snapshot();
+            // 2. Get User Data from Firestore using REST API
+            $userData = $this->getDocument('users', $uid);
 
-            if (!$snapshot->exists()) {
+            if (!$userData) {
                 throw ValidationException::withMessages(['email' => 'User exists in Auth but not in Database.']);
             }
 
-            // 3. Login manually
-            Auth::login(new User(array_merge(['uid' => $uid], $snapshot->data())));
+            // 3. Login manually - ensure uid is set correctly
+            $userData['uid'] = $uid; // Ensure uid is set (getDocument returns 'id')
+            Auth::login(new User($userData));
             
             $request->session()->regenerate();
             return redirect()->intended(route('dashboard', absolute: false));
 
         } catch (\Exception $e) {
             throw ValidationException::withMessages([
-                'email' => 'Invalid credentials.',
+                'email' => 'Invalid credentials (REST API).',
             ]);
         }
     }

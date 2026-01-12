@@ -3,31 +3,23 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Kreait\Laravel\Firebase\Facades\Firebase;
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 
+/**
+ * Contract Controller
+ * Uses Firebase REST API (HTTP/JSON) for all operations
+ */
 class ContractController extends Controller
 {
+    use FirebaseRestTrait;
+
     public function index()
     {
-        $db = Firebase::firestore()->database();
+        // 1. FETCH VENDORS (For the Dropdown) using REST API
+        $vendors = $this->getCollectionDocuments('vendors');
 
-        // 1. FETCH VENDORS (For the Dropdown)
-        $vendorsRef = $db->collection('vendors')->documents();
-        $vendors = [];
-        foreach ($vendorsRef as $doc) {
-            if ($doc->exists()) {
-                $vendors[] = array_merge(['id' => $doc->id()], $doc->data());
-            }
-        }
-
-        // 2. FETCH CONTRACTS (For the Table)
-        $contractsRef = $db->collection('contracts')->documents();
-        $contracts = [];
-        foreach ($contractsRef as $doc) {
-            if ($doc->exists()) {
-                $contracts[] = array_merge(['id' => $doc->id()], $doc->data());
-            }
-        }
+        // 2. FETCH CONTRACTS (For the Table) using REST API
+        $contracts = $this->getCollectionDocuments('contracts');
 
         return view('contracts.index', [
             'contracts' => $contracts,
@@ -45,20 +37,17 @@ class ContractController extends Controller
             'renewal_date' => 'required|date',
         ]);
         
-        // Fetch the Vendor Name based on ID to store it with the contract
-        // This avoids complex lookups later in the table
-        $vendorDoc = Firebase::firestore()->database()->collection('vendors')->document($request->vendor_id)->snapshot();
-        $vendorName = $vendorDoc->exists() ? $vendorDoc->data()['vendor_name'] : 'Unknown Vendor';
+        // Fetch the Vendor Name using REST API
+        $vendor = $this->getDocument('vendors', $request->vendor_id);
+        $data['vendor_name'] = $vendor['vendor_name'] ?? 'Unknown Vendor';
 
-        $data['vendor_name'] = $vendorName; 
-        $data['created_at'] = now()->toIso8601String();
-
-        $newRef = Firebase::firestore()->database()->collection('contracts')->add($data);
+        // Create contract using REST API
+        $newId = $this->createDocument('contracts', $data);
 
         return response()->json([
             'success' => 'Contract created successfully!',
-            'id' => $newRef->id(),
-            'contract' => $data
+            'id' => $newId,
+            'contract' => array_merge(['id' => $newId], $data)
         ]);
     }
 
@@ -72,22 +61,26 @@ class ContractController extends Controller
             'renewal_date' => 'required|date',
         ]);
 
-        // Update Vendor Name in case it changed
-        $vendorDoc = Firebase::firestore()->database()->collection('vendors')->document($request->vendor_id)->snapshot();
-        $data['vendor_name'] = $vendorDoc->exists() ? $vendorDoc->data()['vendor_name'] : 'Unknown Vendor';
-        $data['updated_at'] = now()->toIso8601String();
+        // Update Vendor Name using REST API
+        $vendor = $this->getDocument('vendors', $request->vendor_id);
+        $data['vendor_name'] = $vendor['vendor_name'] ?? 'Unknown Vendor';
 
-        Firebase::firestore()->database()->collection('contracts')->document($id)->set($data, ['merge' => true]);
+        // Update contract using REST API
+        $this->updateDocument('contracts', $id, $data);
 
         return response()->json([
             'success' => 'Contract updated successfully!',
-            'contract' => $data
+            'contract' => array_merge(['id' => $id], $data)
         ]);
     }
 
     public function destroy($id)
     {
-        Firebase::firestore()->database()->collection('contracts')->document($id)->delete();
-        return response()->json(['success' => 'Contract deleted successfully!']);
+        // Delete contract using REST API
+        $this->deleteDocument('contracts', $id);
+        
+        return response()->json([
+            'success' => 'Contract deleted successfully!'
+        ]);
     }
 }

@@ -10,7 +10,11 @@
         "google/cloud-firestore": "^1.54",
         "kreait/laravel-firebase": "^6.2",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "replace": {
+        "grpc/grpc": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -85,7 +89,8 @@
         },
         "platform": {
             "ext-grpc": "0"
-        }
+        },
+        "platform-check": false
     },
     "minimum-stability": "stable",
     "prefer-stable": true

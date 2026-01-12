@@ -147,7 +147,7 @@
             return `
                 <div class="space-x-2">
                     <button onclick='editVendor("${id}", "${safeName}", "${safeEmail}", "${safePhone}", "${safeContact}", ${safeAddress})' 
-                        class="inline-flex items-center px-3 py-1.5 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-900 transition ease-in-out duration-150">
+                        class="inline-flex items-center px-3 py-1.5 bg-[#5a1f24] border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-[#5a1f24] active:bg-[#5a1f24] transition ease-in-out duration-150">
                         Edit
                     </button>
                     <button onclick="deleteVendor('${id}')" 

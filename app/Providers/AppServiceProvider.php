@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use App\Models\User;
 use Kreait\Laravel\Firebase\Facades\Firebase;
 use Illuminate\Contracts\Auth\UserProvider;
@@ -18,21 +19,26 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Register Firestore User Provider (REST API only)
         Auth::provider('firestore', function ($app, array $config) {
             return new class implements UserProvider {
                 
                 public function retrieveById($identifier) {
                     try {
-                        // Using REST API instead of gRPC
+                        // Using Firebase REST API (HTTP/JSON) - NO gRPC
                         $firestore = Firebase::firestore()->database();
                         $doc = $firestore->collection('users')->document($identifier)->snapshot();
                         
                         if ($doc->exists()) {
+                            Log::debug('User retrieved via REST API', ['uid' => $identifier]);
                             return new User(array_merge(['uid' => $identifier], $doc->data()));
                         }
                     } catch (\Exception $e) {
-                        // Log error if needed
-                        \Log::error('Firestore retrieveById error: ' . $e->getMessage());
+                        Log::error('Firestore REST API retrieveById error', [
+                            'uid' => $identifier,
+                            'error' => $e->getMessage(),
+                            'transport' => 'REST (HTTP/JSON)'
+                        ]);
                     }
                     return null;
                 }

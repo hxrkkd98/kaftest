@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Traits\FirebaseRestTrait;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\Password;
-use Kreait\Laravel\Firebase\Facades\Firebase;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Password Controller
+ * Uses Firebase REST API (HTTP/JSON) for password operations
+ */
 class PasswordController extends Controller
 {
+    use FirebaseRestTrait;
     /**
      * Update the user's password.
      */
@@ -27,17 +32,19 @@ class PasswordController extends Controller
         $user = $request->user();
 
         try {
-            $auth = Firebase::auth();
+            // 2. Verify the CURRENT password using REST API
+            $this->executeAuthOperation(function () use ($user, $request) {
+                $auth = $this->getFirebaseAuth();
+                return $auth->signInWithEmailAndPassword($user->email, $request->current_password);
+            }, 'Verify current password');
 
-            // 2. Verify the CURRENT password
-            // We attempt to sign in with the "old" password. 
-            // If this fails, the catch block triggers.
-            $auth->signInWithEmailAndPassword($user->email, $request->current_password);
-
-            // 3. Update to the NEW password
-            $auth->updateUser($user->uid, [
-                'password' => $request->password,
-            ]);
+            // 3. Update to the NEW password using REST API
+            $this->executeAuthOperation(function () use ($user, $request) {
+                $auth = $this->getFirebaseAuth();
+                $auth->updateUser($user->uid, [
+                    'password' => $request->password,
+                ]);
+            }, 'Update password');
 
             return back()->with('status', 'password-updated');
 
