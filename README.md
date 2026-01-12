@@ -7,6 +7,73 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## KAF - Contract & Vendor Management System
+
+This is a Laravel application that uses Firebase (Firestore & Authentication) without requiring the gRPC PHP extension. The application uses REST API for all Firebase operations.
+
+### Features
+
+- User Authentication with Firebase Auth
+- Contract Management
+- Vendor Management
+- Dashboard with Contract Statistics
+- Profile Management
+
+### Firebase Configuration (No gRPC Required)
+
+This project is configured to use Firebase REST API instead of gRPC. See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed setup instructions.
+
+### Quick Setup
+
+1. **Install Dependencies**
+   ```bash
+   composer install
+   npm install
+   ```
+
+2. **Configure Environment**
+   ```bash
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+3. **Setup Firebase**
+   - Place your Firebase credentials at `storage/app/firebase_credentials.json`
+   - Update `.env` with Firebase settings (see FIREBASE_SETUP.md)
+
+4. **Setup Database**
+   ```bash
+   touch database/database.sqlite
+   php artisan migrate
+   ```
+
+5. **Build Assets**
+   ```bash
+   npm run build
+   ```
+
+6. **Run Development Server**
+   ```bash
+   composer run dev
+   ```
+
+   Or run individually:
+   ```bash
+   php artisan serve
+   npm run dev
+   ```
+
+### Testing Firebase Connection
+
+```bash
+php artisan tinker
+```
+
+Then run:
+```php
+Firebase::firestore()->database()->collection('users')->documents();
+```
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

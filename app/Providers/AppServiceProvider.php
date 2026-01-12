@@ -23,13 +23,17 @@ class AppServiceProvider extends ServiceProvider
                 
                 public function retrieveById($identifier) {
                     try {
-                        // Clean syntax because gRPC is installed
-                        $doc = Firebase::firestore()->database()->collection('users')->document($identifier)->snapshot();
+                        // Using REST API instead of gRPC
+                        $firestore = Firebase::firestore()->database();
+                        $doc = $firestore->collection('users')->document($identifier)->snapshot();
                         
                         if ($doc->exists()) {
                             return new User(array_merge(['uid' => $identifier], $doc->data()));
                         }
-                    } catch (\Exception $e) {}
+                    } catch (\Exception $e) {
+                        // Log error if needed
+                        \Log::error('Firestore retrieveById error: ' . $e->getMessage());
+                    }
                     return null;
                 }
                 
